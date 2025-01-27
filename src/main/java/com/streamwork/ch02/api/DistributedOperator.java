@@ -17,4 +17,5 @@ public class DistributedOperator extends Operator {
         applyFunc.apply(event, eventCollector);
         eventCollector.add(event);
     }
+
 }

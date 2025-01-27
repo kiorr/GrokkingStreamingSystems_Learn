@@ -1,9 +1,6 @@
 package com.streamwork.ch02.server;
 
-import com.streamwork.ch02.api.Component;
-import com.streamwork.ch02.api.DistributedOperator;
-import com.streamwork.ch02.api.Event;
-import com.streamwork.ch02.api.Operator;
+import com.streamwork.ch02.api.*;
 import com.streamwork.ch02.engine.EventQueue;
 import com.streamwork.ch02.engine.OperatorExecutor;
 import com.streamwork.ch02.func.ApplyFunc;
@@ -47,5 +44,32 @@ public class Worker extends RpcNode {
     public void addIncomingQueue() {
         System.out.println("addIncomingQueue");
 //        incomingQueue.add(event);
+    }
+
+    public Task requestTaskFromMaster() {
+        return (Task) call(masterPort, "assignTask", new Object[]{});
+    }
+    public void executeTask(Task task) {
+        // 根据 Task 信息加载算子
+        Operator operator = OperatorFactory.create(task.getOperatorType());
+        operator.setLogic(task.getLogic());
+        operator.setParallelism(task.getParallelism());
+
+        // 配置上下游队列
+        EventQueue upstreamQueue = QueueManager.getQueue(task.getUpstreamQueues());
+        EventQueue downstreamQueue = QueueManager.getQueue(task.getDownstreamQueues());
+
+        operator.setIncomingQueue(upstreamQueue);
+        operator.setOutgoingQueue(downstreamQueue);
+
+        // 启动任务
+        operator.start();
+    }
+    public static void main(String[] args) {
+        Worker worker = new Worker();
+        Task task = worker.requestTaskFromMaster();
+        QueueManager.registerQueue("upstreamQueue", incomingQueue);
+        QueueManager.registerQueue("downstreamQueue", outgoingQueue);
+        worker.executeTask(task);
     }
 }
